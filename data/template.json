@@ -1,0 +1,1 @@
+{"prompt": "{system_prompt}\n\n### Input:\n{question}\n", "completion": " {response}"}

@@ -1,5 +1,6 @@
 import argparse
 
+
 def str2bool(v: str) -> bool:
     """Convert string argument to a boolean value."""
     if v.lower() == 'true':
@@ -8,6 +9,7 @@ def str2bool(v: str) -> bool:
         return False
     else:
         raise argparse.ArgumentTypeError("Boolean value expected.")
+
 
 def _parse_args():
     parser = argparse.ArgumentParser()
@@ -39,11 +41,19 @@ def _parse_args():
     parser.add_argument('--pure_bf16', type=str2bool, default=False)
     parser.add_argument('--optimizer', type=str, default='AdamW')
     parser.add_argument('--save_optimizer', type=str2bool, default=False)
-    parser.add_argument('--use_peft', type=str2bool, default=False)
+    parser.add_argument('--use_peft', type=str2bool, default=True)
     parser.add_argument('--peft_method', type=str, default='lora')
-    parser.add_argument('--peft_output_dir', type=str, default='peft')
+    parser.add_argument('--peft_output_dir', type=str, default='peft_model')
     parser.add_argument('--lora_r', type=int, default=8)
     parser.add_argument('--lora_alpha', type=int, default=32)
     parser.add_argument('--lora_dropout', type=float, default=0.05)
     parser.add_argument("--target_modules", type=str, default="q_proj,v_proj")
+    parser.add_argument("--train_dir", type=str, default="./")
+    parser.add_argument("--validation_dir", type=str, default="./")
+    parser.add_argument("--file_extension", type=str, default="jsonl")
+    parser.add_argument("--prompt_template", type=str, default="template.json")
+    parser.add_argument("--validation_split_ratio", type=float, default=0.2)
+    parser.add_argument("--max_input_length", type=int, default=-1)
+    parser.add_argument('--model_output_dir', type=str, default='finetuned_model')
+    
     return parser.parse_known_args()

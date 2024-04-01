@@ -1,12 +1,20 @@
 import fire
+import glob
 import logging
 import os
 import shutil
 import tarfile
+import torch
 
 
 from config.args import _parse_args
 from utils.base import get_num_gpus, run_with_error_handling
+
+from peft import PeftModel
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -34,6 +42,25 @@ def untar_llama_finetuning_recipe_tarball(tarball_path: str, target: str) -> Non
         llama_recipe_tar.extractall(target)
 
     logging.info("Untar Complete")
+
+
+def merge_base_and_peft_model(base_model_dir: str, peft_model_dir: str, save_model_dir: str) -> None:
+    """Load the pre-trained base model and the adapter peft module, merge them and save it to the disk."""
+    logging.info("Combining pre-trained base model with the PEFT adapter module.")
+    model_to_merge = PeftModel.from_pretrained(
+        AutoModelForCausalLM.from_pretrained(base_model_dir, torch_dtype=torch.bfloat16), peft_model_dir
+    )
+
+    merged_model = model_to_merge.merge_and_unload()
+    logging.info("Saving the combined model in safetensors format.")
+    merged_model.save_pretrained(save_model_dir, safe_serialization=True)
+    logging.info("Saving complete.")
+
+    logging.info("Saving the tokenizer.")
+    tokenizer = AutoTokenizer.from_pretrained(base_model_dir)
+    tokenizer.save_pretrained(save_model_dir)
+    logging.info("Saving complete.")
+
 
 
 def create_invoking_command(args):
@@ -94,6 +121,18 @@ def create_invoking_command(args):
             f'{args.val_batch_size}',
             '--quantization',
             f'{args.int8_quantization}',
+            '--train_dir',
+            f'{args.train_dir}',
+            '--validation_dir',
+            f'{args.validation_dir}',
+            '--file_extension',
+            f'{args.file_extension}',
+            '--prompt_template',
+            f'{args.prompt_template}',
+            '--validation_split_ratio',
+            f'{args.validation_split_ratio}',
+            '--max_input_length',
+            f'{args.max_input_length}',
         ]
 
         if args.enable_fsdp:
@@ -140,15 +179,23 @@ def create_invoking_command(args):
 def main(**kwargs):
     # untar_llama_finetuning_recipe_tarball(tarball_path=LLAMA_RECIPES_TARBALL, target=".")
     finetuning_args, _ = _parse_args()
-    print(finetuning_args)
-    print()
+    logging.info(f'Finetuning Args: {finetuning_args}')
     command = create_invoking_command(finetuning_args)
     if command is not None:
         logging.info("Executing command:")
         logging.info(command)
-        run_with_error_handling(command)
+        # run_with_error_handling(command)
 
-    return
+        if finetuning_args.use_peft:
+            merge_base_and_peft_model(
+                base_model_dir=finetuning_args.model_dir,
+                peft_model_dir=finetuning_args.peft_output_dir,
+                save_model_dir=finetuning_args.model_output_dir,
+            )
+
+            for filename in glob.glob(os.path.join(os.path.join(finetuning_args.peft_output_dir, "tokenizer"), "*.*")):
+                print(filename)
+                shutil.copy(filename, finetuning_args.model_output_dir)
 
 
 if __name__ == "__main__":
