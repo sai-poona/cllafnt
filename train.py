@@ -8,7 +8,7 @@ import torch
 
 
 from config.args import _parse_args
-from utils.base import get_num_gpus, run_with_error_handling
+from utils.base import get_num_gpus, run_with_error_handling, tar_and_upload_to_s3
 
 from peft import PeftModel
 from transformers import (
@@ -184,7 +184,7 @@ def main(**kwargs):
     if command is not None:
         logging.info("Executing command:")
         logging.info(command)
-        # run_with_error_handling(command)
+        run_with_error_handling(command)
 
         if finetuning_args.use_peft:
             merge_base_and_peft_model(
@@ -196,6 +196,7 @@ def main(**kwargs):
             for filename in glob.glob(os.path.join(os.path.join(finetuning_args.peft_output_dir, "tokenizer"), "*.*")):
                 print(filename)
                 shutil.copy(filename, finetuning_args.model_output_dir)
+            tar_and_upload_to_s3(finetuning_args.model_output_dir)
 
 
 if __name__ == "__main__":

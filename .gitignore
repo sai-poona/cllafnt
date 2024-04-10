@@ -6,5 +6,5 @@ artifacts/
 models
 models/*
 finetuned_model
-finetunerd_model/*
+finetuned_model/*
 output/*
